@@ -7,7 +7,7 @@ const { Gpio } = require('onoff');
 const { SerialPort, ByteLengthParser } = require('serialport');
 
 const GPIO_LASER_PIN = 17;
-const READER_USB_PATH = '/dev/ttyACM0';
+const READER_USB_PATH = '/dev/ttyUSB0';
 
 const EVENTS = {
   TAGS_LIST_UPDATE: 'TAGS_LIST_UPDATE',
@@ -20,8 +20,8 @@ let portDevice;
 let mainBuffer;
 let len;
 let copyCount = 0;
-function sendTags() {
-  mainWindow.webContents.send(EVENTS.TAGS_LIST_UPDATE, tagsArray);
+function sendTags(tag) {
+  mainWindow.webContents.send(EVENTS.TAGS_LIST_UPDATE, tag);
 }
 // #region READER SECTION
 function toHexString(byteArray) {
@@ -53,7 +53,7 @@ function parseData() {
   if (!mainBuffer) throw new Error('Buffer is empty');
   if (!len) throw new Error('Len is empty');
   const B = mainBuffer;
-  console.log(B.toString('hex'));
+  
 
   if (B.length < 5) throw new Error('Response must be at least 5 bytes');
   if (B.length > len + 1) { throw new Error('Response length is greater than buffer length'); }
@@ -66,7 +66,7 @@ function parseData() {
     console.log('EMPTY');
     return;
   }
-
+  console.log(B.toString('hex'));
   // const addr = B.readUint8(1);
   // const cmd = B.readUint8(2);
   // const status = B.readUint8(3);
@@ -89,11 +89,11 @@ function parseData() {
     const checker = tagsArray.findIndex((e) => e.id === tempTag.id) === -1;
     if (checker) {
       tagsArray.push(tempTag);
+      sendTags(tempTag);
     }
     pointer += tagLen + 1;
     i += 1;
   }
-  sendTags();
 }
 function pushData(chunk) {
   if (!mainBuffer) {
@@ -128,7 +128,7 @@ function setup() {
     startReading();
   });
   try {
-    portDevice = SerialPort({
+    portDevice = new SerialPort({
       path: READER_USB_PATH,
       baudRate: 57600,
       autoOpen: true,
@@ -145,8 +145,9 @@ function setup() {
 // #region ELECTRION SECTION
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 800,
+    width: 1300,
     height: 600,
+    fullscreen: true,
     backgroundColor: '#ccc',
     webPreferences: {
       nodeIntegration: true,
